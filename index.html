@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Party Line — leave a question, pick up an answer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=DM+Sans:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink: #14110c;
+    --ink-2: #1b1712;
+    --walnut: #241f19;
+    --walnut-light: #2d271f;
+    --walnut-lighter: #362f25;
+    --brass: #c9a227;
+    --brass-bright: #e8c158;
+    --verdigris: #4c8c82;
+    --verdigris-bright: #6fb3a8;
+    --parchment: #f1e7d0;
+    --parchment-dim: #b8ad95;
+    --parchment-faint: #7c7462;
+    --ember: #d9642c;
+    --hairline: rgba(241,231,208,0.09);
+    --shadow-deep: 0 20px 60px rgba(0,0,0,0.45);
+    --radius: 10px;
+  }
+
+  *{ box-sizing: border-box; }
+
+  html, body{
+    margin:0; padding:0;
+    background: var(--ink);
+    color: var(--parchment);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+  }
+
+  body{
+    background-image:
+      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(201,162,39,0.10), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 100% 10%, rgba(76,140,130,0.08), transparent 55%),
+      radial-gradient(ellipse 1200px 800px at 50% 120%, rgba(217,100,44,0.06), transparent 60%);
+    background-attachment: fixed;
+  }
+
+  body::before{
+    content:"";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.05;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    z-index: 1000;
+  }
+
+  .mono{ font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.02em; }
+  .dim{ color: var(--parchment-dim); }
+
+  .wrap{
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 20px 100px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    display:flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 16px;
+    margin-bottom: 34px;
+    padding-bottom: 22px;
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .brand h1{
+    font-family: 'Fraunces', serif;
+    font-optical-sizing: auto;
+    font-weight: 600;
+    font-size: clamp(30px, 6vw, 42px);
+    letter-spacing: -0.01em;
+    margin: 0 0 6px;
+    color: var(--brass-bright);
+    text-shadow: 0 0 30px rgba(232,193,88,0.18);
+  }
+
+  .brand p{
+    margin: 0;
+    font-size: 14px;
+    color: var(--parchment-dim);
+    max-width: 34ch;
+    line-height: 1.5;
+  }
+
+  .counter{
+    flex-shrink: 0;
+    background: var(--ink-2);
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    padding: 10px 14px;
+    text-align: right;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.4);
+  }
+
+  .counter .label{
+    display:block;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--parchment-faint);
+    margin-bottom: 4px;
+  }
+
+  .counter .value{
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--brass-bright);
+  }
+
+  .status-pill{
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10.5px;
+    margin-top: 8px;
+    color: var(--parchment-faint);
+  }
+  .status-dot{
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--verdigris-bright);
+    box-shadow: 0 0 6px var(--verdigris-bright);
+  }
+  .status-dot.is-down{ background: var(--ember); box-shadow: 0 0 6px var(--ember); }
+
+  /* ---------- Composer ---------- */
+  .composer{
+    background: linear-gradient(180deg, var(--walnut-light), var(--walnut));
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: 16px;
+    position: relative;
+    box-shadow: var(--shadow-deep);
+  }
+
+  .composer::before{
+    content:"";
+    position:absolute;
+    top:0; left: 14px; right: 14px;
+    height: 2px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, transparent, var(--brass), transparent);
+    opacity: 0.7;
+  }
+
+  .composer--verdigris::before{
+    background: linear-gradient(90deg, transparent, var(--verdigris), transparent);
+  }
+
+  .composer__input{
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    resize: vertical;
+    min-height: 44px;
+    max-height: 200px;
+    color: var(--parchment);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    padding: 4px 2px 10px;
+  }
+
+  .composer__input::placeholder{ color: var(--parchment-faint); }
+  .composer__input:disabled{ opacity: 0.4; }
+
+  .composer__row{
+    display:flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-top: 6px;
+  }
+
+  /* ---------- Buttons ---------- */
+  .btn{
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13.5px;
+    font-weight: 500;
+    border-radius: 7px;
+    padding: 9px 16px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+  }
+  .btn:active{ transform: scale(0.97); }
+  .btn:focus-visible{ outline: 2px solid var(--brass-bright); outline-offset: 2px; }
+  .btn:disabled{ cursor: not-allowed; }
+
+  .btn--ghost{
+    background: transparent;
+    border-color: var(--hairline);
+    color: var(--parchment-dim);
+  }
+  .btn--ghost:hover{ border-color: var(--parchment-faint); color: var(--parchment); }
+
+  .btn--primary{
+    background: linear-gradient(180deg, var(--brass-bright), var(--brass));
+    color: #1a1508;
+    font-weight: 700;
+    box-shadow: 0 6px 18px rgba(201,162,39,0.25);
+  }
+  .composer--verdigris .btn--primary{
+    background: linear-gradient(180deg, var(--verdigris-bright), var(--verdigris));
+    color: #08201c;
+    box-shadow: 0 6px 18px rgba(76,140,130,0.25);
+  }
+  .btn--primary:disabled{
+    opacity: 0.35;
+    box-shadow: none;
+  }
+  .btn--primary:hover:not(:disabled){ transform: translateY(-1px); }
+
+  .btn--stop{
+    background: var(--ember);
+    color: #fff2e9;
+    font-weight: 600;
+  }
+
+  .btn-record:disabled{ opacity: 0.35; }
+  .btn-record__dot{
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--ember);
+    display: inline-block;
+  }
+
+  .btn--pickup{
+    width: 100%;
+    justify-content: center;
+    background: transparent;
+    border: 1px dashed rgba(111,179,168,0.45);
+    color: var(--verdigris-bright);
+    padding: 11px 16px;
+    font-weight: 600;
+  }
+  .btn--pickup:hover{
+    border-color: var(--verdigris-bright);
+    background: rgba(76,140,130,0.08);
+  }
+  .btn--pickup__icon{
+    width: 14px; height: 14px;
+    display:inline-block;
+    background: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.4 0 .8-.2 1L6.6 10.8z'/%3E%3C/svg%3E") no-repeat center / contain;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.4 0 .8-.2 1L6.6 10.8z'/%3E%3C/svg%3E") no-repeat center / contain;
+  }
+
+  .btn--pickup:disabled{
+    opacity: 0.4;
+    border-style: solid;
+  }
+
+  /* ---------- Recording UI ---------- */
+  .recording{
+    display:flex;
+    align-items: center;
+    gap: 12px;
+    padding-top: 8px;
+  }
+  .recording.hidden, .preview.hidden{ display:none; }
+
+  .recording__wave{
+    flex: 1;
+    height: 44px;
+    background: #0d0b08;
+    border-radius: 6px;
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.6);
+  }
+
+  .recording__timer{ font-size: 13px; color: var(--ember); min-width: 44px; }
+
+  /* ---------- Preview / Player ---------- */
+  .preview{ padding-top: 8px; }
+  .preview__player{ margin-bottom: 8px; }
+
+  .player{
+    display:flex;
+    align-items:center;
+    gap: 10px;
+    background: rgba(0,0,0,0.18);
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+  .player__btn{
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    border: none;
+    background: var(--brass);
+    color: #1a1508;
+    display:flex; align-items:center; justify-content:center;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .player--verdigris .player__btn{ background: var(--verdigris); color: #08201c; }
+  .player__btn svg{ width: 14px; height: 14px; fill: currentColor; }
+  .player__bar{
+    flex:1;
+    height: 5px;
+    background: rgba(241,231,208,0.12);
+    border-radius: 3px;
+    cursor: pointer;
+    position: relative;
+  }
+  .player__progress{
+    position:absolute; left:0; top:0; bottom:0;
+    width:0%;
+    background: var(--brass-bright);
+    border-radius: 3px;
+  }
+  .player--verdigris .player__progress{ background: var(--verdigris-bright); }
+  .player__time{ font-size: 11.5px; color: var(--parchment-dim); min-width: 34px; text-align:right; }
+
+  /* ---------- Feed ---------- */
+  .feed{ margin-top: 30px; display:flex; flex-direction: column; gap: 16px; }
+
+  .card{
+    background: var(--walnut-light);
+    border-left: 3px solid var(--brass);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 16px 18px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  }
+  @media (prefers-reduced-motion: no-preference){
+    .card{ animation: rise 0.5s ease backwards; }
+  }
+  @keyframes rise{
+    from{ opacity: 0; transform: translateY(10px); }
+    to{ opacity: 1; transform: translateY(0); }
+  }
+
+  .card__eyebrow{
+    display:flex;
+    align-items:center;
+    gap: 8px;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--brass-bright);
+    margin-bottom: 10px;
+  }
+  .card__eyebrow .dot{ color: var(--parchment-faint); }
+
+  .card__body{ margin-bottom: 4px; }
+  .card__text{
+    margin: 0;
+    font-size: 15.5px;
+    line-height: 1.6;
+    color: var(--parchment);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .answer-zone{ margin-top: 14px; }
+
+  .answer-card{
+    background: var(--walnut-lighter);
+    border-left: 3px solid var(--verdigris);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 16px;
+    margin-left: 14px;
+  }
+  .answer-card .card__eyebrow{ color: var(--verdigris-bright); }
+
+  /* ---------- Empty / error state ---------- */
+  .empty{
+    text-align:center;
+    padding: 60px 20px;
+    color: var(--parchment-dim);
+  }
+  .empty svg{ width: 40px; height: 40px; fill: var(--parchment-faint); margin-bottom: 14px; opacity: 0.7; }
+  .empty h2{
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 22px;
+    color: var(--parchment);
+    margin: 0 0 6px;
+  }
+  .empty p{ margin:0; font-size: 14px; }
+  .empty.is-error h2{ color: var(--ember); }
+
+  footer{
+    text-align:center;
+    margin-top: 50px;
+    font-size: 11.5px;
+    color: var(--parchment-faint);
+    line-height: 1.6;
+  }
+
+  @media (max-width: 480px){
+    .wrap{ padding: 32px 14px 80px; }
+    header{ flex-direction: column; align-items: flex-start; }
+    .counter{ align-self: stretch; text-align: left; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>Party Line</h1>
+      <p>Drop a question on the line. Whoever's around can pick it up — by voice or by word.</p>
+    </div>
+    <div>
+      <div class="counter">
+        <span class="label">On the line</span>
+        <span class="value mono" id="counterValue">– open</span>
+      </div>
+      <div class="status-pill"><span class="status-dot" id="statusDot"></span><span id="statusText">connecting…</span></div>
+    </div>
+  </header>
+
+  <div id="mainComposerSlot"></div>
+
+  <div class="feed" id="feed"></div>
+
+  <footer>
+    Calls are stored on the server, not this browser — anyone with this page can hear the line.
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------------------------------------------------------------------
+  // Point this at your backend if the frontend is hosted separately
+  // (e.g. frontend on Vercel, backend on Render). Leave it as '' if
+  // this HTML file is served BY the FastAPI backend itself.
+  // ---------------------------------------------------------------------
+  const API_BASE_URL = ''; // e.g. 'https://party-line-backend.onrender.com'
+
+  const POLL_INTERVAL_MS = 4000;
+
+  const feedEl = document.getElementById('feed');
+  const counterEl = document.getElementById('counterValue');
+  const statusDot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+  const mainComposerSlot = document.getElementById('mainComposerSlot');
+
+  let entries = [];
+  let loadedOnce = false;
+  const openComposers = new Set();
+
+  /* ---------- utils ---------- */
+  function formatDuration(sec){
+    if(!isFinite(sec) || sec < 0) sec = 0;
+    sec = Math.round(sec);
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${String(s).padStart(2,'0')}`;
+  }
+
+  function relativeTime(ts){
+    const diff = Math.floor((Date.now() - ts) / 1000);
+    if(diff < 10) return 'just now';
+    if(diff < 60) return `${diff}s ago`;
+    if(diff < 3600) return `${Math.floor(diff/60)}m ago`;
+    if(diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+    const d = Math.floor(diff/86400);
+    if(d < 7) return `${d}d ago`;
+    return new Date(ts).toLocaleDateString();
+  }
+
+  function normalize(call){
+    return {
+      id: call.id,
+      number: call.id,
+      type: call.kind,
+      content: call.content,
+      timestamp: new Date(call.created_at).getTime(),
+      answer: call.answer_kind ? {
+        type: call.answer_kind,
+        content: call.answer_content,
+        timestamp: new Date(call.answer_created_at).getTime()
+      } : null
+    };
+  }
+
+  /* ---------- API ---------- */
+  async function api(path, { method = 'GET', json, form } = {}){
+    const opts = { method, headers: {} };
+    if(json !== undefined){
+      opts.headers['Content-Type'] = 'application/json';
+      opts.body = JSON.stringify(json);
+    }
+    if(form !== undefined){
+      opts.body = form;
+    }
+    const res = await fetch(API_BASE_URL + path, opts);
+    if(!res.ok){
+      let message = res.statusText || `Request failed (${res.status})`;
+      try{
+        const body = await res.json();
+        if(body && body.detail) message = body.detail;
+      }catch(e){ /* not JSON, keep default message */ }
+      throw new Error(message);
+    }
+    if(res.status === 204) return null;
+    return res.json();
+  }
+
+  function setStatus(connected, message){
+    statusDot.classList.toggle('is-down', !connected);
+    statusText.textContent = message;
+  }
+
+  async function loadCalls(isInitial){
+    try{
+      const data = await api('/api/calls');
+      entries = data.map(normalize);
+      setStatus(true, 'connected');
+      loadedOnce = true;
+      render();
+    }catch(err){
+      setStatus(false, 'line down — retrying…');
+      if(isInitial) renderError(err);
+    }
+  }
+
+  async function addQuestion(data){
+    try{
+      let call;
+      if(data.type === 'text'){
+        call = await api('/api/calls/text', { method: 'POST', json: { content: data.content } });
+      }else{
+        const form = new FormData();
+        form.append('file', data.blob, 'recording.webm');
+        call = await api('/api/calls/audio', { method: 'POST', form });
+      }
+      entries.push(normalize(call));
+      render();
+    }catch(err){
+      alert("That didn't make it to the line: " + err.message);
+    }
+  }
+
+  async function setAnswer(id, data){
+    try{
+      let call;
+      if(data.type === 'text'){
+        call = await api(`/api/calls/${id}/answer/text`, { method: 'POST', json: { content: data.content } });
+      }else{
+        const form = new FormData();
+        form.append('file', data.blob, 'recording.webm');
+        call = await api(`/api/calls/${id}/answer/audio`, { method: 'POST', form });
+      }
+      const idx = entries.findIndex(e => e.id === id);
+      if(idx !== -1) entries[idx] = normalize(call);
+      render();
+    }catch(err){
+      alert("That answer didn't make it through: " + err.message);
+      loadCalls(false); // resync in case someone else already picked up
+    }
+  }
+
+  /* ---------- audio recorder ---------- */
+  function Recorder(canvas){
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.chunks = [];
+    this.mediaRecorder = null;
+    this.stream = null;
+    this.audioCtx = null;
+    this.analyser = null;
+    this.rafId = null;
+    this.startTime = null;
+  }
+
+  Recorder.prototype.start = async function(){
+    this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    let mime = '';
+    if(window.MediaRecorder && MediaRecorder.isTypeSupported){
+      if(MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) mime = 'audio/webm;codecs=opus';
+      else if(MediaRecorder.isTypeSupported('audio/mp4')) mime = 'audio/mp4';
+    }
+    this.mediaRecorder = mime ? new MediaRecorder(this.stream, { mimeType: mime }) : new MediaRecorder(this.stream);
+    this.chunks = [];
+    this.mediaRecorder.ondataavailable = (e) => { if(e.data && e.data.size > 0) this.chunks.push(e.data); };
+    this.mediaRecorder.start();
+    this.startTime = Date.now();
+
+    this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = this.audioCtx.createMediaStreamSource(this.stream);
+    this.analyser = this.audioCtx.createAnalyser();
+    this.analyser.fftSize = 1024;
+    src.connect(this.analyser);
+    this._draw();
+  };
+
+  Recorder.prototype._draw = function(){
+    const ctx = this.ctx, canvas = this.canvas, analyser = this.analyser;
+    const data = new Uint8Array(analyser.fftSize);
+    const loop = () => {
+      this.rafId = requestAnimationFrame(loop);
+      analyser.getByteTimeDomainData(data);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.beginPath();
+      const slice = canvas.width / data.length;
+      let x = 0;
+      for(let i = 0; i < data.length; i++){
+        const v = data[i] / 128.0;
+        const y = (v * canvas.height) / 2;
+        if(i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        x += slice;
+      }
+      ctx.strokeStyle = '#e8934f';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    };
+    loop();
+  };
+
+  Recorder.prototype.stop = function(){
+    return new Promise((resolve) => {
+      this.mediaRecorder.onstop = () => {
+        cancelAnimationFrame(this.rafId);
+        this.stream.getTracks().forEach(t => t.stop());
+        this.audioCtx.close();
+        const blob = new Blob(this.chunks, { type: this.mediaRecorder.mimeType || 'audio/webm' });
+        const duration = Math.round((Date.now() - this.startTime) / 1000);
+        resolve({ blob, duration });
+      };
+      this.mediaRecorder.stop();
+    });
+  };
+
+  /* ---------- mic capability check ---------- */
+  function micIsAvailable(){
+    // getUserMedia only exists in secure contexts (https, or http://localhost).
+    // Opening this file directly (file://) or over plain http on a remote
+    // host will make navigator.mediaDevices undefined in most browsers.
+    return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.isSecureContext);
+  }
+
+  /* ---------- audio player component ---------- */
+  function buildAudioPlayer(src, accentClass){
+    const wrap = document.createElement('div');
+    wrap.className = 'player ' + (accentClass || '');
+    wrap.innerHTML = `
+      <button type="button" class="player__btn" aria-label="Play">
+        <svg class="icon-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        <svg class="icon-pause" viewBox="0 0 24 24" hidden><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+      </button>
+      <div class="player__bar"><div class="player__progress"></div></div>
+      <span class="player__time mono">0:00</span>
+    `;
+    const audio = new Audio(src);
+    const btn = wrap.querySelector('.player__btn');
+    const playIcon = wrap.querySelector('.icon-play');
+    const pauseIcon = wrap.querySelector('.icon-pause');
+    const bar = wrap.querySelector('.player__bar');
+    const progress = wrap.querySelector('.player__progress');
+    const timeLabel = wrap.querySelector('.player__time');
+
+    btn.addEventListener('click', () => {
+      if(audio.paused) audio.play(); else audio.pause();
+    });
+    audio.addEventListener('play', () => { playIcon.hidden = true; pauseIcon.hidden = false; });
+    audio.addEventListener('pause', () => { playIcon.hidden = false; pauseIcon.hidden = true; });
+    audio.addEventListener('ended', () => {
+      playIcon.hidden = false; pauseIcon.hidden = true; progress.style.width = '0%';
+      timeLabel.textContent = formatDuration(audio.duration);
+    });
+    audio.addEventListener('timeupdate', () => {
+      if(audio.duration){
+        progress.style.width = (audio.currentTime / audio.duration * 100) + '%';
+        timeLabel.textContent = formatDuration(audio.duration - audio.currentTime);
+      }
+    });
+    audio.addEventListener('loadedmetadata', () => {
+      if(isFinite(audio.duration)) timeLabel.textContent = formatDuration(audio.duration);
+    });
+    bar.addEventListener('click', (e) => {
+      const rect = bar.getBoundingClientRect();
+      const pct = (e.clientX - rect.left) / rect.width;
+      if(audio.duration) audio.currentTime = pct * audio.duration;
+    });
+
+    return wrap;
+  }
+
+  /* ---------- composer component ---------- */
+  function createComposer(opts){
+    const accent = opts.accent;
+    const el = document.createElement('div');
+    el.className = 'composer composer--' + accent;
+    el.innerHTML = `
+      <textarea class="composer__input" placeholder="${opts.placeholder}" rows="2"></textarea>
+      <div class="composer__row">
+        <button type="button" class="btn btn--ghost btn-record">
+          <span class="btn-record__dot"></span> Record voice
+        </button>
+        <button type="button" class="btn btn--primary btn-send" disabled>${opts.submitLabel}</button>
+      </div>
+      <div class="recording hidden">
+        <canvas class="recording__wave" width="320" height="44"></canvas>
+        <span class="recording__timer mono">00:00</span>
+        <button type="button" class="btn btn--stop">Stop</button>
+      </div>
+      <div class="preview hidden">
+        <div class="preview__player"></div>
+        <div class="composer__row">
+          <button type="button" class="btn btn--ghost btn-discard">Discard</button>
+          <button type="button" class="btn btn--primary btn-send-audio">${opts.submitLabel}</button>
+        </div>
+      </div>
+    `;
+
+    const textarea = el.querySelector('.composer__input');
+    const sendBtn = el.querySelector('.btn-send');
+    const recordBtn = el.querySelector('.btn-record');
+    const stopBtn = el.querySelector('.btn--stop');
+    const discardBtn = el.querySelector('.btn-discard');
+    const sendAudioBtn = el.querySelector('.btn-send-audio');
+    const recordingUI = el.querySelector('.recording');
+    const previewUI = el.querySelector('.preview');
+    const timerEl = el.querySelector('.recording__timer');
+    const canvas = el.querySelector('.recording__wave');
+    const playerSlot = el.querySelector('.preview__player');
+
+    if(!micIsAvailable()){
+      recordBtn.disabled = true;
+      recordBtn.title = window.isSecureContext
+        ? "This browser can't record audio."
+        : "Voice recording needs https (or localhost). Serve this page over https to enable it.";
+    }
+
+    let recorder = null;
+    let timerInterval = null;
+    let pendingAudio = null;
+    let submitting = false;
+
+    textarea.addEventListener('input', () => {
+      sendBtn.disabled = textarea.value.trim().length === 0;
+    });
+
+    sendBtn.addEventListener('click', async () => {
+      const val = textarea.value.trim();
+      if(!val || submitting) return;
+      submitting = true;
+      sendBtn.disabled = true;
+      await opts.onSubmit({ type: 'text', content: val });
+      textarea.value = '';
+      submitting = false;
+      sendBtn.disabled = textarea.value.trim().length === 0;
+    });
+
+    function resetToIdle(){
+      recordBtn.classList.remove('hidden');
+      sendBtn.classList.remove('hidden');
+      textarea.disabled = false;
+      previewUI.classList.add('hidden');
+      recordingUI.classList.add('hidden');
+      playerSlot.innerHTML = '';
+      pendingAudio = null;
+    }
+
+    recordBtn.addEventListener('click', async () => {
+      if(!micIsAvailable()){
+        alert(window.isSecureContext
+          ? "This browser can't record audio. Try typing instead, or use a modern browser."
+          : "Voice recording only works over https (or on localhost). Ask whoever's hosting this page to serve it over https.");
+        return;
+      }
+      try{
+        recorder = new Recorder(canvas);
+        await recorder.start();
+        el.classList.add('is-recording');
+        recordingUI.classList.remove('hidden');
+        recordBtn.classList.add('hidden');
+        sendBtn.classList.add('hidden');
+        textarea.disabled = true;
+        let secs = 0;
+        timerEl.textContent = '00:00';
+        timerInterval = setInterval(() => {
+          secs++;
+          const m = String(Math.floor(secs / 60)).padStart(2, '0');
+          const s = String(secs % 60).padStart(2, '0');
+          timerEl.textContent = `${m}:${s}`;
+          if(secs >= 90) stopBtn.click();
+        }, 1000);
+      }catch(err){
+        alert("Couldn't reach the microphone. Check this site's microphone permission in your browser settings.");
+      }
+    });
+
+    stopBtn.addEventListener('click', async () => {
+      clearInterval(timerInterval);
+      el.classList.remove('is-recording');
+      const result = await recorder.stop();
+      pendingAudio = result;
+      recordingUI.classList.add('hidden');
+      const url = URL.createObjectURL(result.blob);
+      playerSlot.innerHTML = '';
+      playerSlot.appendChild(buildAudioPlayer(url, accent === 'verdigris' ? 'player--verdigris' : 'player--brass'));
+      previewUI.classList.remove('hidden');
+    });
+
+    discardBtn.addEventListener('click', () => {
+      resetToIdle();
+    });
+
+    sendAudioBtn.addEventListener('click', async () => {
+      if(!pendingAudio || submitting) return;
+      submitting = true;
+      sendAudioBtn.disabled = true;
+      await opts.onSubmit({ type: 'audio', blob: pendingAudio.blob, duration: pendingAudio.duration });
+      submitting = false;
+      resetToIdle();
+    });
+
+    return { element: el };
+  }
+
+  /* ---------- rendering ---------- */
+  function buildEmptyState(){
+    const div = document.createElement('div');
+    div.className = 'empty';
+    div.innerHTML = `
+      <svg viewBox="0 0 24 24"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.4 0 .8-.2 1L6.6 10.8z"/></svg>
+      <h2>The line's quiet.</h2>
+      <p>Be the first voice on it.</p>
+    `;
+    return div;
+  }
+
+  function renderError(err){
+    feedEl.innerHTML = '';
+    const div = document.createElement('div');
+    div.className = 'empty is-error';
+    div.innerHTML = `
+      <svg viewBox="0 0 24 24"><path d="M12 2 1 21h22L12 2zm0 5.5 6.9 12H5.1L12 7.5zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg>
+      <h2>Can't reach the line.</h2>
+      <p class="mono">${(err && err.message) || 'Unknown error'}</p>
+      <p style="margin-top:8px;">Check that the backend is running and that API_BASE_URL in this file points to it.</p>
+    `;
+    feedEl.appendChild(div);
+  }
+
+  function buildCard(entry){
+    const card = document.createElement('article');
+    card.className = 'card';
+
+    const header = document.createElement('div');
+    header.className = 'card__eyebrow';
+    header.innerHTML = `<span class="mono">LINE ${String(entry.number).padStart(3, '0')}</span><span class="dot">·</span><span class="mono dim">${relativeTime(entry.timestamp)}</span>`;
+    card.appendChild(header);
+
+    const body = document.createElement('div');
+    body.className = 'card__body';
+    if(entry.type === 'text'){
+      const p = document.createElement('p');
+      p.className = 'card__text';
+      p.textContent = entry.content;
+      body.appendChild(p);
+    }else{
+      body.appendChild(buildAudioPlayer(entry.content, 'player--brass'));
+    }
+    card.appendChild(body);
+
+    const answerZone = document.createElement('div');
+    answerZone.className = 'answer-zone';
+
+    if(entry.answer){
+      const aCard = document.createElement('div');
+      aCard.className = 'answer-card';
+      const aHeader = document.createElement('div');
+      aHeader.className = 'card__eyebrow';
+      aHeader.innerHTML = `<span class="mono">PICKED UP</span><span class="dot">·</span><span class="mono dim">${relativeTime(entry.answer.timestamp)}</span>`;
+      aCard.appendChild(aHeader);
+      const aBody = document.createElement('div');
+      aBody.className = 'card__body';
+      if(entry.answer.type === 'text'){
+        const p = document.createElement('p');
+        p.className = 'card__text';
+        p.textContent = entry.answer.content;
+        aBody.appendChild(p);
+      }else{
+        aBody.appendChild(buildAudioPlayer(entry.answer.content, 'player--verdigris'));
+      }
+      aCard.appendChild(aBody);
+      answerZone.appendChild(aCard);
+    }else if(openComposers.has(entry.id)){
+      const composer = createComposer({
+        accent: 'verdigris',
+        placeholder: 'Say something back…',
+        submitLabel: 'Send answer',
+        onSubmit: async (data) => {
+          await setAnswer(entry.id, data);
+          openComposers.delete(entry.id);
+        }
+      });
+      answerZone.appendChild(composer.element);
+    }else{
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn--pickup';
+      btn.innerHTML = `<span class="btn--pickup__icon"></span> Pick up this line`;
+      btn.addEventListener('click', () => {
+        openComposers.add(entry.id);
+        render();
+      });
+      answerZone.appendChild(btn);
+    }
+
+    card.appendChild(answerZone);
+    return card;
+  }
+
+  function render(){
+    const openCount = entries.filter(e => !e.answer).length;
+    counterEl.textContent = loadedOnce ? `${openCount} open` : '– open';
+
+    feedEl.innerHTML = '';
+    if(loadedOnce && entries.length === 0){
+      feedEl.appendChild(buildEmptyState());
+      return;
+    }
+    entries.slice().reverse().forEach((entry, i) => {
+      const card = buildCard(entry);
+      card.style.animationDelay = `${Math.min(i, 8) * 40}ms`;
+      feedEl.appendChild(card);
+    });
+  }
+
+  /* ---------- init ---------- */
+  const mainComposer = createComposer({
+    accent: 'brass',
+    placeholder: "What's on your mind?",
+    submitLabel: 'Send it out',
+    onSubmit: addQuestion
+  });
+  mainComposerSlot.appendChild(mainComposer.element);
+
+  loadCalls(true);
+  setInterval(() => loadCalls(false), POLL_INTERVAL_MS);
+})();
+</script>
+</body>
+</html>
